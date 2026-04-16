@@ -14,31 +14,49 @@ async function startServer() {
   // API route for sending email
   app.post("/api/send-email", async (req, res) => {
     const { name, email, message } = req.body;
-    // ... (mesma lógica de email)
-    const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-    const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+
+    if (!name || !email || !message) {
+      console.warn("Tentativa de envio de e-mail com campos faltando:", { name, email, message });
+      return res.status(400).json({ error: "Todos os campos (nome, email, mensagem) são obrigatórios." });
+    }
+
+    // Fallback directly provided by user for immediate functionality
+    const user = process.env.SMTP_USER || process.env.EMAIL_USER || "davydsonleal@gmail.com";
+    const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || "xuzzogylqjyvyaoe";
 
     if (!user || !pass) {
-      return res.status(500).json({ error: "Configuração de e-mail incompleta." });
+      console.error("ERRO: Credenciais de e-mail não configuradas.");
+      return res.status(500).json({ 
+        error: "Servidor não configurado para enviar e-mails." 
+      });
     }
 
     try {
       const transporter = nodemailer.createTransport({
         service: "gmail",
-        auth: { user, pass },
+        auth: { 
+          user: user.trim(), 
+          pass: pass.replace(/\s+/g, '') // Remove spaces from app password if present
+        },
       });
 
       const mailOptions = {
-        from: user,
+        from: user.trim(),
         to: "davydsonleal@gmail.com",
         subject: `Nova mensagem de contato de ${name}`,
         text: `Nome: ${name}\nE-mail: ${email}\n\nMensagem:\n${message}`,
+        replyTo: email
       };
 
-      await transporter.sendMail(mailOptions);
+      console.log(`Tentando enviar e-mail de ${email} para davydsonleal@gmail.com...`);
+      const info = await transporter.sendMail(mailOptions);
+      console.log("E-mail enviado com sucesso:", info.messageId);
       res.status(200).json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Erro ao enviar e-mail." });
+      console.error("ERRO DETALHADO AO ENVIAR E-MAIL:", error);
+      res.status(500).json({ 
+        error: "Erro interno ao enviar e-mail. Verifique se a 'Senha de App' do Google está correta e se o e-mail não foi bloqueado." 
+      });
     }
   });
 
