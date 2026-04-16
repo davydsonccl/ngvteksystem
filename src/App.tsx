@@ -60,22 +60,35 @@ export default function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(data),
       });
 
+      const contentType = response.headers.get("content-type");
+      
       if (response.ok) {
         setFormStatus('sent');
         setTimeout(() => setFormStatus('idle'), 3000);
         (e.target as HTMLFormElement).reset();
       } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Erro ao enviar e-mail. Verifique se as credenciais foram configuradas.');
+        let errorMessage = 'Falha ao enviar e-mail.';
+        
+        if (response.status === 405) {
+          errorMessage = "Erro 405: O Cloudflare não encontrou sua função. Verifique se a pasta 'functions' foi enviada corretamente no deploy.";
+        } else if (response.status === 500) {
+          errorMessage = "Erro 500: Verifique se a variável RESEND_API_KEY foi adicionada no painel do Cloudflare.";
+        } else if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        }
+
+        alert(errorMessage);
         setFormStatus('idle');
       }
     } catch (error) {
-      console.error('Erro ao enviar e-mail:', error);
-      alert('Erro de conexão ao enviar e-mail.');
+      console.error('Erro de conexão:', error);
+      alert('Erro de conexão com o servidor do Cloudflare.');
       setFormStatus('idle');
     }
   };
